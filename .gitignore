@@ -3,4 +3,6 @@
 symbols.*
 *.native
 *.sky
+*.elf
+*.bin
 obj_*

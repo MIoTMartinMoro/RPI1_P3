@@ -44,7 +44,7 @@
 #include "net/ipv6/uip-ds6-route.h"
 
 #define UDP_CLIENT_PORT 8765
-#define UDP_SERVER_PORT 5678
+#define UDP_SERVER_PORT 5005
 
 #define UDP_EXAMPLE_ID  190
 
@@ -52,7 +52,7 @@
 #include "net/ip/uip-debug.h"
 
 #ifndef PERIOD
-#define PERIOD 60
+#define PERIOD 10
 #endif
 
 #define START_INTERVAL		(15 * CLOCK_SECOND)
@@ -62,6 +62,14 @@
 
 static struct uip_udp_conn *client_conn;
 static uip_ipaddr_t server_ipaddr;
+
+struct mensaje
+{
+  unsigned short id; // Identificador unico para el mensaje.
+  unsigned short ip; // Ultimos dos bytes de la IP (v6) del emisor.
+  unsigned short nsensors; // Nº sensores utilizados.
+  float sensors[6]; // Valores sensorizados.
+};
 
 /*---------------------------------------------------------------------------*/
 PROCESS(udp_client_process, "UDP client process");
@@ -88,6 +96,18 @@ send_packet(void *ptr)
 {
   char buf[MAX_PAYLOAD_LEN];
 
+  struct mensaje my_mensaje;
+
+  my_mensaje.id = 0x1234;
+  my_mensaje.ip = 0x9595;
+  my_mensaje.nsensors = 0x6;
+  my_mensaje.sensors[0] = 32.2;
+  my_mensaje.sensors[1] = 32.2;
+  my_mensaje.sensors[2] = 32.2;
+  my_mensaje.sensors[3] = 32.2;
+  my_mensaje.sensors[4] = 32.2;
+  my_mensaje.sensors[5] = 32.2;
+
 #ifdef SERVER_REPLY
   uint8_t num_used = 0;
   uip_ds6_nbr_t *nbr;
@@ -107,8 +127,8 @@ send_packet(void *ptr)
   seq_id++;
   PRINTF("DATA send to %d 'Hello %d'\n",
          server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1], seq_id);
-  sprintf(buf, "Hello %d from the client", seq_id);
-  uip_udp_packet_sendto(client_conn, buf, strlen(buf),
+  //sprintf(buf, "Hello %d from the client", seq_id);
+  uip_udp_packet_sendto(client_conn, &my_mensaje, strlen(my_mensaje.sensors),
                         &server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
 }
 /*---------------------------------------------------------------------------*/
@@ -163,7 +183,7 @@ set_global_address(void)
    uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 1);
 #elif 1
 /* Mode 2 - 16 bits inline */
-  uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 1);
+  uip_ip6addr(&server_ipaddr, 0, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0101);
 #else
 /* Mode 3 - derived from server link-local (MAC) address */
   uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0x0250, 0xc2ff, 0xfea8, 0xcd1a); //redbee-econotag
