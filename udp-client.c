@@ -94,19 +94,34 @@ tcpip_handler(void)
 static void
 send_packet(void *ptr)
 {
-  char buf[MAX_PAYLOAD_LEN];
-
   struct mensaje my_mensaje;
+  int len = 0;
+  my_mensaje.nsensors = 0;
+  int i;
+  uint8_t state;
 
-  my_mensaje.id = 0x1234;
-  my_mensaje.ip = 0x9595;
-  my_mensaje.nsensors = 0x6;
-  my_mensaje.sensors[0] = 32.2;
-  my_mensaje.sensors[1] = 32.2;
-  my_mensaje.sensors[2] = 32.2;
-  my_mensaje.sensors[3] = 32.2;
-  my_mensaje.sensors[4] = 32.2;
-  my_mensaje.sensors[5] = 32.2;
+  my_mensaje.sensors[0] = 4;
+  my_mensaje.sensors[1] = 4;
+  my_mensaje.sensors[2] = 4;
+  my_mensaje.sensors[3] = 4;
+  my_mensaje.sensors[4] = 4;
+  my_mensaje.sensors[5] = 4;
+
+  my_mensaje.nsensors = 6;
+
+  len = sizeof(unsigned short) * 3 + sizeof(float) * my_mensaje.nsensors;
+
+  for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
+    state = uip_ds6_if.addr_list[i].state;
+    if(uip_ds6_if.addr_list[i].isused && state == ADDR_PREFERRED) {
+      my_mensaje.ip = uip_ds6_if.addr_list[i].ipaddr.u16[7];
+      if (state == ADDR_TENTATIVE) {
+        uip_ds6_if.addr_list[i].state = ADDR_PREFERRED;
+      }
+    }
+  }
+
+  my_mensaje.id = my_mensaje.ip + seq_id;
 
 #ifdef SERVER_REPLY
   uint8_t num_used = 0;
@@ -125,10 +140,39 @@ send_packet(void *ptr)
 #endif /* SERVER_REPLY */
 
   seq_id++;
-  PRINTF("DATA send to %d 'Hello %d'\n",
-         server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1], seq_id);
+  /*PRINTF("DATA send to %d 'Hello %d'\n",
+         server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1], seq_id);*/
+  PRINTF("ID: %d Len: %d IP: 0x%x No Sensores: %d\n\n", my_mensaje.id, len, my_mensaje.ip, my_mensaje.nsensors);
+  
   //sprintf(buf, "Hello %d from the client", seq_id);
-  uip_udp_packet_sendto(client_conn, &my_mensaje, strlen(my_mensaje.sensors),
+  uip_ds6_route_t *r;
+  uip_ipaddr_t *nexthop;
+  uip_ds6_defrt_t *defrt;
+  uip_ipaddr_t *ipaddr;
+  defrt = NULL;
+  if((ipaddr = uip_ds6_defrt_choose()) != NULL) {
+    defrt = uip_ds6_defrt_lookup(ipaddr);
+  }
+  if(defrt != NULL) {
+    PRINTF("DefRT: :: -> %x", defrt->ipaddr.u16[7]);
+    PRINTF(" lt:%lu inf:%d\n", stimer_remaining(&defrt->lifetime),
+           defrt->isinfinite);
+  } else {
+    PRINTF("DefRT: :: -> NULL\n");
+  }
+
+  for(r = uip_ds6_route_head();
+      r != NULL;
+      r = uip_ds6_route_next(r)) {
+    nexthop = uip_ds6_route_nexthop(r);
+    PRINTF("Route: %x -> %x", r->ipaddr.u16[7], nexthop->u16[7]);
+    /* PRINT6ADDR(&r->ipaddr); */
+    /* PRINTF(" -> "); */
+    /* PRINT6ADDR(nexthop); */
+    PRINTF(" lt:%lu\n", r->state.lifetime);
+
+  }
+  uip_udp_packet_sendto(client_conn, &my_mensaje, len,
                         &server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
 }
 /*---------------------------------------------------------------------------*/
