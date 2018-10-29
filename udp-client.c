@@ -154,7 +154,7 @@ send_packet(void *ptr)
     defrt = uip_ds6_defrt_lookup(ipaddr);
   }
   if(defrt != NULL) {
-    PRINTF("DefRT: :: -> %x", defrt->ipaddr.u16[7]);
+    PRINTF("DefRT: :: -> 0x%x", defrt->ipaddr.u16[7]);
     PRINTF(" lt:%lu inf:%d\n", stimer_remaining(&defrt->lifetime),
            defrt->isinfinite);
   } else {
@@ -165,7 +165,7 @@ send_packet(void *ptr)
       r != NULL;
       r = uip_ds6_route_next(r)) {
     nexthop = uip_ds6_route_nexthop(r);
-    PRINTF("Route: %x -> %x", r->ipaddr.u16[7], nexthop->u16[7]);
+    PRINTF("Route: 0x%x -> 0x%x", r->ipaddr.u16[7], nexthop->u16[7]);
     /* PRINT6ADDR(&r->ipaddr); */
     /* PRINTF(" -> "); */
     /* PRINT6ADDR(nexthop); */
